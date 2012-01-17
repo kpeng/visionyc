@@ -27,14 +27,14 @@ d3.json('data/zipcodes.json', function(json) {
     //
     // Set up zip code boundary features
     //
-    
+
     var features = json.features;
-    
+
     var svg = d3.select('#chart').append('svg')
         .attr('width', width)
         .attr('height', height)
         .call(d3.behavior.zoom().on('zoom', redraw));
-    
+
     var zipcodes = svg.append('g')
         .attr('id', 'nyc-zipcodes')
         .attr('class', 'Blues');
@@ -101,25 +101,25 @@ d3.json('data/zipcodes.json', function(json) {
 
     d3.json('data/population.json', function(population_data) {
         population = population_data;
-        
+
         d3.json('data/electricity.json', function(json) {
             electricity_usage = json;
-            
+
             var values = [];
             for (var k in electricity_usage) {
                 if (electricity_usage[k][type])
                     values.push(electricity_usage[k][type]);
             }
             values.sort(function(a, b) { return a - b; });
-            
+
             var ranges = [];
             for (var i = 0; i < values.length; ++i)
                 ranges[i] = Math.floor(i / (Math.ceil(values.length / 9)));
-            
+
             quantile = d3.scale.ordinal()
                 .domain(values)
                 .range(ranges);
-            
+
             zipcodes.selectAll('path')
                 .attr('original-title', function(d) {
                     var output = electricity_usage[d.id] ? (electricity_usage[d.id][type] ? electricity_usage[d.id][type] : 0) : 0;
@@ -128,7 +128,7 @@ d3.json('data/zipcodes.json', function(json) {
                 .html(function(d) {
                     $(this).tipsy({ gravity: 'e' });
                 });
-            
+
             zipcodes.selectAll('path')
                 .attr('class', quantize);
         });
@@ -136,19 +136,22 @@ d3.json('data/zipcodes.json', function(json) {
 
     function quantize(d) {
         var type_alias = type == 'residential-per-capita' ? 'residential' : type;
-        if (electricity_usage[d.id] && electricity_usage[d.id][type_alias])
-            return 'q' + ~~quantile(electricity_usage[d.id][type_alias]) + '-9';
-        else
+        if (electricity_usage[d.id] && electricity_usage[d.id][type_alias]) {
+            var domain_value = electricity_usage[d.id][type_alias];
+            if (type == 'residential-per-capita')
+                domain_value /= population[d.id];
+            return 'q' + ~~quantile(domain_value) + '-9';
+        } else
             return 'q0-9';
     }
-    
+
     //
     // Handle choropleth transitions for drop-down list
     //
-    
+
     $('#residence-type').change(function(ui) {
         type = ui.target.value;
-        
+
         var values = [];
         for (var k in electricity_usage) {
             var type_alias = type == 'residential-per-capita' ? 'residential' : type;
@@ -160,15 +163,15 @@ d3.json('data/zipcodes.json', function(json) {
             }
         }
         values.sort(function(a, b) { return a - b; });
-        
+
         var ranges = [];
         for (var i = 0; i < values.length; ++i)
             ranges[i] = Math.floor(i / (Math.ceil(values.length / 9)));
-        
+
         quantile = d3.scale.ordinal()
             .domain(values)
             .range(ranges);
-        
+
         zipcodes.selectAll('path')
             .attr('original-title', function(d) {
                 var type_alias = type == 'residential-per-capita' ? 'residential' : type;
@@ -178,7 +181,7 @@ d3.json('data/zipcodes.json', function(json) {
                                        usage[type_alias] / population[d.id] : usage[type_alias]) : 0) : 0;
                 return d.id + ': ' + format(output);
             });
-        
+
         zipcodes.selectAll('path')
             .attr('class', quantize);
     });
