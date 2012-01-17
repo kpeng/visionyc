@@ -26,3 +26,14 @@ Dependencies
 ### Datasets
 
 * [NYC Open Data](http://nycopendata.socrata.com/) -- NYC's public data and API initiative
+
+Running
+-------
+
+A really simple node.js server.js file is provided for convenience, but the code
+as it stands is all static files, so you could use nginx or Apache to serve the
+static files.  If you wish to run it using node.js, do:
+
+```node server.js```
+
+and go to `http://localhost:8080/`.
