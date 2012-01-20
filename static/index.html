@@ -9,34 +9,49 @@
     <script type="text/javascript" src="lib/d3.geom.js"></script>
     <script type="text/javascript" src="lib/jquery-1.7.1.js"></script>
     <script type="text/javascript" src="lib/jquery.tipsy.js"></script>
-    <script type="text/javascript" src="lib/jquery-ui-1.8.17.min.js"></script>
 
-    <link rel="stylesheet" href="resources/css/bootstrap.min.css" type="text/css" >
+    <link rel="stylesheet" href="resources/css/bootstrap.css" type="text/css" >
     <link rel="stylesheet" href="resources/css/colorbrewer.css" type="text/css" />
-    <link rel="stylesheet" href="resources/css/jquery-ui-1.8.17.css" />
     <link rel="stylesheet" href="resources/css/tipsy.css" type="text/css" />
+
+    <link rel="stylesheet" href="visionyc.css" type="text/css" />
   </head>
   <body>
-    <div class="page-header">
-      <h1>NYC Data Visualization</h1>
-    </div>
-    <div class="row">
-      <div class="span4">
-        <p>
-          <select id="residence-type">
-            <option value="commercial">Commercial</option>
-            <option value="institutional">Institutional</option>
-            <option value="residential">Residential</option>
-            <option value="residential-per-capita">Residential (per capita)</option>
-          </select>
-        </p>
+    <div class="topbar" id="navigation">
+      <div class="topbar-inner">
+        <div class="container-fluid">
+          <a class="brand" href="#">NYC Data Visualization</a>
+        </div>
       </div>
-      <div class="span12">
+    </div>
+    <div class="container-fluid">
+      <div class="content" id="chart">
         <div class="row">
-          <div align="center" id="chart"></div>
-          <link href="visionyc.css" rel="stylesheet" type="text/css" />
           <script type="text/javascript" src="visionyc.js"></script>
         </div>
+      </div>
+      <div class="sidebar" align="center">
+        <form>
+          <fieldset>
+            <!-- I feel bad about this hack.  Chrome won't do a file dialog
+                 unless it's visible, so I need to make it "hidden" without
+                 actually hiding it :( -->
+            <input id="dummy-file" type="file" style="position: absolute; top: -50px; z-index: -1" accept="application/json" />
+            <div class="clearfix">
+              <select id="data-select" disabled="true">
+                <option value="data/electricity.json">2010 Con Edison Electricity Usage</option>
+                <option value="upload">Upload a dataset...</option>
+              </select>
+              <span class="help-block">You can pick an existing dataset or upload your own</span>
+            </div>
+            <div class="clearfix">
+              <button id="load-button" class="btn primary" type="button" disabled="true">Load</button>
+            </div>
+          </fieldset>
+        </form>
+
+        <!-- Initially hidden, until a dataset is loaded -->
+        <select id="feature-types" style="display: none"></select>
       </div>
     </div>
   </body>

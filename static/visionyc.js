@@ -1,17 +1,9 @@
-var type = 'commercial';
-var population, electricity_usage, quantile;
+var CHOROPLETH_RANGE = 9;
 
-var margin = 25;
-var width = window.innerWidth * 3/4 - margin,
-    height = window.innerHeight - 50 - margin;
-
-// Equirectangular projection isn't very nice to look at, but the projection
-// function is very simple, and that makes it easy to solve for the ideal
-// scale and translation, which we do later
-var projection = d3.geo.equirectangular();
-
-var path = d3.geo.path().projection(projection);
-
+/**
+ * Formats a number to a 0,000.00 specification, there's probably a library for
+ * this
+ */
 function format(number) {
     number += '';
     x = number.split('.');
@@ -23,166 +15,249 @@ function format(number) {
     return x1 + x2;
 }
 
-d3.json('data/zipcodes.json', function(json) {
-    //
-    // Set up zip code boundary features
-    //
+$(function() {
+    // Population data per zip-code (for per-capita-enabled datasets)
+    var population = null;
 
-    var features = json.features;
+    /*
+     * Set up plain NYC map when the document is ready (we actually need the width
+     * measurements)
+     */
 
-    var svg = d3.select('#chart').append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .call(d3.behavior.zoom().on('zoom', redraw));
+    // Width calculation is pretty straightforward, but the height calculation
+    // uses the magic margin number.  Note that the centering, scaling, and
+    // translation assumes you'll be viewing this in a window that has more width
+    // than height
+    var margin = 25,
+        width = $('#chart').width(),
+        height = window.innerHeight - $('#navigation').height() - margin;
 
-    var zipcodes = svg.append('g')
-        .attr('id', 'nyc-zipcodes')
-        .attr('class', 'Blues');
+    // Equirectangular projection isn't very nice to look at, but the projection
+    // function is very simple, and that makes it easy to solve for the ideal
+    // scale and translation, which we do later
+    var projection = d3.geo.equirectangular();
 
-    zipcodes.selectAll('path')
-        .data(features)
-        .enter().append('path')
-            .attr('d', path);
+    var path = d3.geo.path().projection(projection);
 
-    // Figure out latitude and longitude bounds for our geography
-    var longitude_bounds = [null, null],
-        latitude_bounds = [null, null];
+    d3.json('data/zipcodes.json', function(json) {
+        //
+        // Set up zip code boundary features
+        //
 
-    features.forEach(function(feature) {
-        var bounds = d3.geo.bounds(feature);
-        if (longitude_bounds[0] == null || bounds[0][0] < longitude_bounds[0])
-            longitude_bounds[0] = bounds[0][0];
-        if (longitude_bounds[1] == null || bounds[1][0] > longitude_bounds[1])
-            longitude_bounds[1] = bounds[1][0];
-        if (latitude_bounds[0] == null || bounds[0][1] < latitude_bounds[0])
-            latitude_bounds[0] = bounds[0][1];
-        if (latitude_bounds[1] == null || bounds[1][1] > latitude_bounds[1])
-            latitude_bounds[1] = bounds[1][1];
-    });
+        var features = json.features;
 
-    // Reverse-engineer the appropriate scale and translation factors if we want
-    // [(min_longitude + max_longitude) / 2, max_latitude] to [width / 2, 0] and
-    // [(min_longitude + max_longitude) / 2, min_latitude] to [width / 2, height]
-    // i.e. scale the center-axis of our bounding box to the center-axis of the
-    // SVG canvas (this is basically solving a system of three equations in three
-    // unknowns)
-    var scale = 360 * height / (latitude_bounds[1] - latitude_bounds[0]);
-    var translation = [
-        width / 2 - scale * (longitude_bounds[0] + longitude_bounds[1]) / 720,
-        scale * latitude_bounds[1] / 360,
-    ];
+        var svg = d3.select('#chart').append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .call(d3.behavior.zoom().on('zoom', redraw));
 
-    projection.scale(scale);
-    projection.translate(translation);
-    zipcodes.selectAll('path').attr('d', path);
+        var zipcodes = svg.append('g')
+            .attr('id', 'nyc-zipcodes')
+            .attr('class', 'Blues');
 
-    // redraw() from http://bl.ocks.org/1283960
-    function redraw() {
-        // d3.event.translate (an array) stores the current translation from the
-        // parent SVG element.  t (an array) stores the projection's default
-        // translation.  We add the x and y vales in each array to determine the
-        // projection's new translation
-        var tx = translation[0] * d3.event.scale + d3.event.translate[0];
-        var ty = translation[1] * d3.event.scale + d3.event.translate[1];
-        projection.translate([tx, ty]);
-
-        // Now we determine the projection's new scale, but there's a problem:
-        // the map doesn't 'zoom onto the mouse point'
-        projection.scale(scale * d3.event.scale);
-
-        // Redraw the map
         zipcodes.selectAll('path')
-            .attr('d', path);
-    }
-
-    //
-    // Set up choropleth electricity_usage
-    //
-
-    d3.json('data/population.json', function(population_data) {
-        population = population_data;
-
-        d3.json('data/electricity.json', function(json) {
-            electricity_usage = json;
-
-            var values = [];
-            for (var k in electricity_usage) {
-                if (electricity_usage[k][type])
-                    values.push(electricity_usage[k][type]);
-            }
-            values.sort(function(a, b) { return a - b; });
-
-            var ranges = [];
-            for (var i = 0; i < values.length; ++i)
-                ranges[i] = Math.floor(i / (Math.ceil(values.length / 9)));
-
-            quantile = d3.scale.ordinal()
-                .domain(values)
-                .range(ranges);
-
-            zipcodes.selectAll('path')
+            .data(features)
+            .enter().append('path')
+                .attr('d', path)
                 .attr('original-title', function(d) {
-                    var output = electricity_usage[d.id] ? (electricity_usage[d.id][type] ? electricity_usage[d.id][type] : 0) : 0;
-                    return d.id + ': ' + format(output);
+                    return d.id;
                 })
                 .html(function(d) {
                     $(this).tipsy({ gravity: 'e' });
                 });
 
-            zipcodes.selectAll('path')
-                .attr('class', quantize);
+        // Figure out latitude and longitude bounds for our geography
+        var longitude_bounds = [null, null],
+            latitude_bounds = [null, null];
+
+        features.forEach(function(feature) {
+            var bounds = d3.geo.bounds(feature);
+            if (longitude_bounds[0] == null || bounds[0][0] < longitude_bounds[0])
+                longitude_bounds[0] = bounds[0][0];
+            if (longitude_bounds[1] == null || bounds[1][0] > longitude_bounds[1])
+                longitude_bounds[1] = bounds[1][0];
+            if (latitude_bounds[0] == null || bounds[0][1] < latitude_bounds[0])
+                latitude_bounds[0] = bounds[0][1];
+            if (latitude_bounds[1] == null || bounds[1][1] > latitude_bounds[1])
+                latitude_bounds[1] = bounds[1][1];
         });
-    });
 
-    function quantize(d) {
-        var type_alias = type == 'residential-per-capita' ? 'residential' : type;
-        if (electricity_usage[d.id] && electricity_usage[d.id][type_alias]) {
-            var domain_value = electricity_usage[d.id][type_alias];
-            if (type == 'residential-per-capita')
-                domain_value /= population[d.id];
-            return 'q' + ~~quantile(domain_value) + '-9';
-        } else
-            return 'q0-9';
-    }
+        // Reverse-engineer the appropriate scale and translation factors if we want
+        // [(min_longitude + max_longitude) / 2, max_latitude] to [width / 2, 0] and
+        // [(min_longitude + max_longitude) / 2, min_latitude] to [width / 2, height]
+        // i.e. scale the center-axis of our bounding box to the center-axis of the
+        // SVG canvas (this is basically solving a system of three equations in three
+        // unknowns)
+        var scale = 360 * height / (latitude_bounds[1] - latitude_bounds[0]);
+        var translation = [
+            width / 2 - scale * (longitude_bounds[0] + longitude_bounds[1]) / 720,
+            scale * latitude_bounds[1] / 360,
+        ];
 
-    //
-    // Handle choropleth transitions for drop-down list
-    //
+        projection.scale(scale);
+        projection.translate(translation);
+        zipcodes.selectAll('path').attr('d', path);
 
-    $('#residence-type').change(function(ui) {
-        type = ui.target.value;
+        // redraw() from http://bl.ocks.org/1283960
+        function redraw() {
+            // d3.event.translate (an array) stores the current translation from the
+            // parent SVG element.  t (an array) stores the projection's default
+            // translation.  We add the x and y vales in each array to determine the
+            // projection's new translation
+            var tx = translation[0] * d3.event.scale + d3.event.translate[0];
+            var ty = translation[1] * d3.event.scale + d3.event.translate[1];
+            projection.translate([tx, ty]);
 
-        var values = [];
-        for (var k in electricity_usage) {
-            var type_alias = type == 'residential-per-capita' ? 'residential' : type;
-            if (electricity_usage[k][type_alias]) {
-                if (type == 'residential-per-capita')
-                    values.push(electricity_usage[k][type_alias] / population[k]);
-                else
-                    values.push(electricity_usage[k][type_alias]);
-            }
+            // Now we determine the projection's new scale, but there's a problem:
+            // the map doesn't 'zoom onto the mouse point'
+            projection.scale(scale * d3.event.scale);
+
+            // Redraw the map
+            zipcodes.selectAll('path')
+                .attr('d', path);
         }
-        values.sort(function(a, b) { return a - b; });
 
-        var ranges = [];
-        for (var i = 0; i < values.length; ++i)
-            ranges[i] = Math.floor(i / (Math.ceil(values.length / 9)));
+        /*
+         * We're only going to enable the loading features when the population data
+         * is loaded, since we don't know if people will ask for per-capita views
+         */
 
-        quantile = d3.scale.ordinal()
-            .domain(values)
-            .range(ranges);
+        d3.json('data/population.json', function(json) {
+            population = json;
+            $('#data-select').prop('disabled', false);
+            $('#load-button').prop('disabled', false);
+        });
 
-        zipcodes.selectAll('path')
-            .attr('original-title', function(d) {
-                var type_alias = type == 'residential-per-capita' ? 'residential' : type;
-                var usage = electricity_usage[d.id];
-                var output = usage ? (usage[type_alias] ?
-                                      (type == 'residential-per-capita' ?
-                                       usage[type_alias] / population[d.id] : usage[type_alias]) : 0) : 0;
-                return d.id + ': ' + format(output);
-            });
+        /*
+         * Handlers for UI elements
+         */
 
-        zipcodes.selectAll('path')
-            .attr('class', quantize);
+        var file_handles = {};
+        $('#dummy-file').change(function(ui) {
+            var filelist = ui.target.files;
+            for (var i = 0; i < filelist.length; ++i) {
+                var file = filelist.item(i);
+                $('#data-select').prepend(
+                    $('<option></option>')
+                        .attr('id', file.fileName)
+                        .attr('value', file.fileName)
+                        .prop('uploaded', true)
+                        .text(file.fileName));
+                $('#data-select').val(file.fileName);
+
+                // Save the "File" object so we can retrieve it later
+                file_handles[file.fileName] = file;
+            }
+        });
+
+        $('#data-select').change(function(ui) {
+            if (ui.target.value == "upload")
+                $('#dummy-file').click();
+        });
+
+        $('#load-button').click(function() {
+            var filename = $('#data-select').val();
+            if ($('#data-select option[value="' + filename +'"]').prop('uploaded')) {
+                var file = file_handles[filename];
+                if (file) {
+                    var reader = new FileReader();
+                    reader.readAsText(file);
+                    reader.onloadend = function() {
+                        loadJSON(JSON.parse(reader.result));
+                    };
+                }
+            } else {
+                d3.json(filename, loadJSON);
+            }
+        });
+
+        $('#feature-types').change(function(ui) {
+            loadFeature(ui.target.value);
+        });
+
+        /*
+         * Functions to handle datasets
+         */
+
+        var data = null;
+        function loadJSON(json) {
+            var feature = null;
+
+            // Clear out options from any previous loads
+            $('#feature-types').children().remove().end();
+            data = json.data;
+
+            json.specification.forEach(function(type) {
+                $('#feature-types').append(
+                    $('<option></option>')
+                        .attr('value', type.id)
+                        .text(type.text));
+
+                // We're introducing some convenience here by using the population
+                // data to auto-calculate per-capita usage for things that are
+                // specified as per-capita-calculatable
+                if (type['per-capita']) {
+                    $('#feature-types').append(
+                        $('<option></option>')
+                            .attr('value', type.id + '-per-capita')
+                            .prop('original', type.id)
+                            .prop('per-capita', true)
+                            .text(type.text + ' (per capita)'));
+                }
+
+                if (feature == null)
+                    feature = type.id;
+            })
+
+            $('#feature-types').css('display', 'inherit');
+            loadFeature(feature);
+        }
+
+        function loadFeature(feature) {
+            var option = $('#feature-types option[value="' + feature +'"]');
+            var is_per_capita = option.prop('per-capita');
+
+            if (is_per_capita)
+                feature = option.prop('original');
+
+            var domain = [];
+            for (var k in data) {
+                if (data[k][feature]) {
+                    if (is_per_capita)
+                        domain.push(data[k][feature] / population[k]);
+                    else
+                        domain.push(data[k][feature]);
+                }
+            }
+            domain.sort(function(a, b) { return a - b; });
+
+            var range = [];
+            for (var i = 0; i < domain.length; ++i)
+                range[i] = Math.floor(i / (Math.ceil(domain.length / CHOROPLETH_RANGE)));
+
+            var quantile = d3.scale.ordinal()
+                .domain(domain)
+                .range(range);
+
+            function quantize(d) {
+                if (data[d.id] && data[d.id][feature]) {
+                    var domain_value = data[d.id][feature];
+                    if (is_per_capita)
+                        domain_value /= population[d.id];
+                    return 'q' + ~~quantile(domain_value) + '-9';
+                }
+                else {
+                    return 'q0-9';
+                }
+            }
+
+            zipcodes.selectAll('path')
+                .attr('original-title', function(d) {
+                    var value = data[d.id];
+                    var output = value ? (value[feature] ? (is_per_capita ? value[feature] / population[d.id] : value[feature]) : 0) : 0;
+                    return d.id + ': ' + format(output);
+                })
+                .attr('class', quantize);
+        }
     });
 });
