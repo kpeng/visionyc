@@ -59,11 +59,11 @@ $(function() {
             .data(features)
             .enter().append('path')
                 .attr('d', path)
-                .attr('original-title', function(d) {
+                .attr('title', function(d) {
                     return d.id;
                 })
                 .html(function(d) {
-                    $(this).tipsy({ gravity: 'e' });
+                    $(this).twipsy({ 'placement': 'left' });
                 });
 
         // Figure out latitude and longitude bounds for our geography
@@ -252,7 +252,7 @@ $(function() {
             }
 
             zipcodes.selectAll('path')
-                .attr('original-title', function(d) {
+                .attr('title', function(d) {
                     var value = data[d.id];
                     var output = value ? (value[feature] ? (is_per_capita ? value[feature] / population[d.id] : value[feature]) : 0) : 0;
                     return d.id + ': ' + format(output);
