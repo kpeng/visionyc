@@ -282,7 +282,6 @@ $(function() {
                     feature = type.id;
             })
 
-            $('#feature-types').css('display', 'inherit');
             loadFeature(feature);
 
             $('#feature-types').change(function(ui) {
