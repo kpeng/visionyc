@@ -9,9 +9,9 @@
     <script type="text/javascript" src="lib/d3.geom.js"></script>
     <script type="text/javascript" src="lib/jquery-1.7.1.js"></script>
     <script type="text/javascript" src="lib/jquery-ui-1.8.17.min.js"></script>
-    <script type="text/javascript" src="lib/bootstrap-alerts.js"></script>
-    <script type="text/javascript" src="lib/bootstrap-buttons.js"></script>
-    <script type="text/javascript" src="lib/bootstrap-twipsy.js"></script>
+    <script type="text/javascript" src="lib/bootstrap-alert.js"></script>
+    <script type="text/javascript" src="lib/bootstrap-button.js"></script>
+    <script type="text/javascript" src="lib/bootstrap-tooltip.js"></script>
 
     <link rel="stylesheet" href="resources/css/bootstrap.css" type="text/css" >
     <link rel="stylesheet" href="resources/css/colorbrewer.css" type="text/css" />
@@ -21,71 +21,73 @@
     <script type="text/javascript" src="visionyc.js"></script>
   </head>
   <body>
-    <div class="topbar" id="navigation">
-      <div class="topbar-inner">
+    <div class="navbar" id="navigation">
+      <div class="navbar-inner">
         <div class="container-fluid">
           <a class="brand" href="#">NYC Data Visualization</a>
         </div>
       </div>
     </div>
     <div class="container-fluid">
-      <div class="sidebar" align="center">
-        <div class="row">
-          <form>
-            <fieldset>
-              <!-- I feel bad about this hack.  Chrome won't do a file dialog
-                   unless it's visible, so I need to make it "hidden" without
-                   actually hiding it :( -->
-              <div class="clearfix">
-                <input id="dummy-file" type="file" style="position: absolute; top: -50px; z-index: -1" accept="application/json" />
-              </div>
-              <div class="clearfix">
-                <select id="data-select" disabled="true">
-                  <option value="data/electricity.json">2010 Con Edison Electricity Usage</option>
-                  <option value="upload">Upload a dataset...</option>
-                </select>
-                <span class="help-block">You can pick an existing dataset or upload your own</span>
-              </div>
-              <div class="clearfix">
-                <button id="load-button" class="btn primary" type="button" disabled="true">Load</button>
-              </div>
-            </fieldset>
-          </form>
+      <div class="row-fluid">
+        <div class="span2" align="center">
+          <div class="row">
+            <form>
+              <fieldset>
+                <!-- I feel bad about this hack.  Chrome won't do a file dialog
+                     unless it's visible, so I need to make it "hidden" without
+                     actually hiding it :( -->
+                <div class="clearfix">
+                  <input id="dummy-file" type="file" style="position: absolute; top: -50px; z-index: -1" accept="application/json" />
+                </div>
+                <div class="clearfix">
+                  <select id="data-select" disabled="true">
+                    <option value="data/electricity.json">2010 Con Edison Electricity Usage</option>
+                    <option value="upload">Upload a dataset...</option>
+                  </select>
+                  <p class="help-block">You can pick an existing dataset or upload your own</p>
+                </div>
+                <div class="clearfix">
+                  <button id="load-button" class="btn btn-primary" type="button" disabled="true">Load</button>
+                </div>
+              </fieldset>
+            </form>
+          </div>
+          <div class="row" style="padding: 10px">
+            <h3>Click ALL the options!</h3>
+            <form>
+              <fieldset>
+                <div class="clearfix">
+                  <p class="help-block">Toggle different features of the data</p>
+                  <select id="feature-types"></select>
+                </div>
+                <div class="clearfix">
+                  <p class="help-block">Colors</p>
+                  <select id="color-types">
+                    <option value="Blues">Blues</option>
+                    <option value="Purples">Purples</option>
+                    <option value="Greens">Greens</option>
+                    <option value="Oranges">Oranges</option>
+                    <option value="Reds">Reds</option>
+                    <option value="Greys">Greys</option>
+                  </select>
+                </div>
+                <div class="clearfix">
+                  <p class="help-block">Buckets: <span id="choropleth-count">9</span></p>
+                  <div id="slider"></div>
+                </div>
+                <div class="clearfix">
+                </div>
+              </fieldset>
+            </form>
+          </div>
         </div>
-        <div class="row" style="padding: 10px">
-          <h3>Click ALL the options!</h3>
-          <form>
-            <fieldset>
-              <div class="clearfix">
-                <span class="help-block">Toggle different features of the data</span>
-                <select id="feature-types"></select>
-              </div>
-              <div class="clearfix">
-                <span class="help-block">Colors</span>
-                <select id="color-types">
-                  <option value="Blues">Blues</option>
-                  <option value="Purples">Purples</option>
-                  <option value="Greens">Greens</option>
-                  <option value="Oranges">Oranges</option>
-                  <option value="Reds">Reds</option>
-                  <option value="Greys">Greys</option>
-                </select>
-              </div>
-              <div class="clearfix">
-                <span class="help-block">Buckets: <span id="choropleth-count">9</span></span>
-                <div id="slider"></div>
-              </div>
-              <div class="clearfix">
-              </div>
-            </fieldset>
-          </form>
-        </div>
-      </div>
-      <div class="content">
-        <div class="row" id="chart"></div>
-        <div class="row" id="controls">
-          <div class="pull-right">
-            <button id="reset-button" class="btn primary" type="button">Reset Zoom and Pan</button>
+        <div class="span10">
+          <div class="row-fluid" id="chart"></div>
+          <div class="row-fluid" id="controls">
+            <div class="pull-right">
+              <button id="reset-button" class="btn btn-primary" type="button">Reset Zoom and Pan</button>
+            </div>
           </div>
         </div>
       </div>
