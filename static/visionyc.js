@@ -1,5 +1,3 @@
-var CHOROPLETH_RANGE = 9;
-
 /**
  * Formats a number to a 0,000.00 specification, there's probably a library for
  * this
@@ -19,6 +17,9 @@ $(function() {
     // Population data per zip-code (for per-capita-enabled datasets)
     var population = null;
 
+    // # of choropleth colors we're supporting (up to 9)
+    var choropleth_range = 9;
+
     /*
      * Set up plain NYC map when the document is ready (we actually need the width
      * measurements)
@@ -28,7 +29,7 @@ $(function() {
     // uses the magic margin number.  Note that the centering, scaling, and
     // translation assumes you'll be viewing this in a window that has more width
     // than height
-    var margin = 25,
+    var margin = 60,
         width = $('#chart').width(),
         height = window.innerHeight - $('#navigation').height() - margin;
 
@@ -175,11 +176,45 @@ $(function() {
             loadFeature(ui.target.value);
         });
 
+        $('#color-types').change(function(ui) {
+            zipcodes.attr('class', ui.target.value);
+        });
+
+        $('#slider').slider({
+            min: 3,
+            max: 9,
+            value: 9,
+
+            change: function(event, ui) {
+                choropleth_range = ui.value;
+                $('#choropleth-count').text(ui.value);
+
+                if (quantile) {
+                    var range = [];
+                    for (var i = 0; i < quantile.domain().length; ++i)
+                        range[i] = Math.floor(i / (Math.ceil(quantile.domain().length / choropleth_range)));
+
+                    quantile.range(range);
+
+                    zipcodes.selectAll('path')
+                        .attr('class', quantize);
+                }
+            }
+        });
+
+        $('#reset-button').click(function() {
+            projection.scale(scale);
+            projection.translate(translation);
+            d3.behavior.zoomReset();
+            zipcodes.selectAll('path')
+                .attr('d', path);
+        });
+
         /*
          * Functions to handle datasets
          */
 
-        var data = null;
+        var data = null, quantile = null, quantize = null;
         function loadJSON(json) {
             var feature = null;
 
@@ -233,21 +268,20 @@ $(function() {
 
             var range = [];
             for (var i = 0; i < domain.length; ++i)
-                range[i] = Math.floor(i / (Math.ceil(domain.length / CHOROPLETH_RANGE)));
+                range[i] = Math.floor(i / (Math.ceil(domain.length / choropleth_range)));
 
-            var quantile = d3.scale.ordinal()
+            quantile = d3.scale.ordinal()
                 .domain(domain)
                 .range(range);
 
-            function quantize(d) {
+            quantize = function(d) {
                 if (data[d.id] && data[d.id][feature]) {
                     var domain_value = data[d.id][feature];
                     if (is_per_capita)
                         domain_value /= population[d.id];
-                    return 'q' + ~~quantile(domain_value) + '-9';
-                }
-                else {
-                    return 'q0-9';
+                    return 'q' + ~~quantile(domain_value) + '-' + choropleth_range;
+                } else {
+                    return 'q0-' + choropleth_range;
                 }
             }
 
