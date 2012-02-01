@@ -41,9 +41,9 @@ $(function() {
     var path = d3.geo.path().projection(projection);
 
     d3.json('data/zipcodes.json', function(json) {
-        //
-        // Set up zip code boundary features
-        //
+        /*
+         * Set up zip code boundary features
+         */
 
         var features = json.features;
 
@@ -118,11 +118,8 @@ $(function() {
                 .attr('d', path);
         }
 
-        /*
-         * We're only going to enable the loading features when the population data
-         * is loaded, since we don't know if people will ask for per-capita views
-         */
-
+        // We're only going to enable the loading features when the population data
+        // is loaded, since we don't know if people will ask for per-capita views
         d3.json('data/population.json', function(json) {
             population = json;
             $('#data-select').prop('disabled', false);
@@ -172,10 +169,6 @@ $(function() {
             }
         });
 
-        $('#feature-types').change(function(ui) {
-            loadFeature(ui.target.value);
-        });
-
         $('#color-types').change(function(ui) {
             zipcodes.attr('class', ui.target.value);
         });
@@ -183,23 +176,7 @@ $(function() {
         $('#slider').slider({
             min: 3,
             max: 9,
-            value: 9,
-
-            change: function(event, ui) {
-                choropleth_range = ui.value;
-                $('#choropleth-count').text(ui.value);
-
-                if (quantile) {
-                    var range = [];
-                    for (var i = 0; i < quantile.domain().length; ++i)
-                        range[i] = Math.floor(i / (Math.ceil(quantile.domain().length / choropleth_range)));
-
-                    quantile.range(range);
-
-                    zipcodes.selectAll('path')
-                        .attr('class', quantize);
-                }
-            }
+            value: 9
         });
 
         $('#reset-button').click(function() {
@@ -214,13 +191,74 @@ $(function() {
          * Functions to handle datasets
          */
 
-        var data = null, quantile = null, quantize = null;
         function loadJSON(json) {
             var feature = null;
 
+            function loadFeature(feature) {
+                var option = $('#feature-types option[value="' + feature +'"]');
+                var is_per_capita = option.prop('per-capita');
+
+                if (is_per_capita)
+                    feature = option.prop('original');
+
+                var domain = [];
+                for (var k in data) {
+                    if (data[k][feature]) {
+                        if (is_per_capita)
+                            domain.push(data[k][feature] / population[k]);
+                        else
+                            domain.push(data[k][feature]);
+                    }
+                }
+                domain.sort(function(a, b) { return a - b; });
+
+                var range = [];
+                for (var i = 0; i < domain.length; ++i)
+                    range[i] = Math.floor(i / (Math.ceil(domain.length / choropleth_range)));
+
+                var quantile = d3.scale.ordinal()
+                    .domain(domain)
+                    .range(range);
+
+                var quantize = function(d) {
+                    if (data[d.id] && data[d.id][feature]) {
+                        var domain_value = data[d.id][feature];
+                        if (is_per_capita)
+                            domain_value /= population[d.id];
+                        return 'q' + ~~quantile(domain_value) + '-' + choropleth_range;
+                    } else {
+                        return 'q0-' + choropleth_range;
+                    }
+                }
+
+                zipcodes.selectAll('path')
+                    .attr('data-original-title', function(d) {
+                        var value = data[d.id];
+                        var output = value ? (value[feature] ? (is_per_capita ? value[feature] / population[d.id] : value[feature]) : 0) : 0;
+                        return d.id + ': ' + format(output);
+                    })
+                    .attr('class', quantize);
+
+                // We bind the change event in the slider here to pull in the
+                // quantile and recalculate the quantization style classes
+                $('#slider').bind('slidechange', function(event, ui) {
+                    choropleth_range = ui.value;
+                    $('#choropleth-count').text(ui.value);
+
+                    var range = [];
+                    for (var i = 0; i < quantile.domain().length; ++i)
+                        range[i] = Math.floor(i / (Math.ceil(quantile.domain().length / choropleth_range)));
+
+                    quantile.range(range);
+
+                    zipcodes.selectAll('path')
+                        .attr('class', quantize);
+                });
+            }
+
             // Clear out options from any previous loads
             $('#feature-types').children().remove().end();
-            data = json.data;
+            var data = json.data;
 
             json.specification.forEach(function(type) {
                 $('#feature-types').append(
@@ -246,52 +284,10 @@ $(function() {
 
             $('#feature-types').css('display', 'inherit');
             loadFeature(feature);
-        }
 
-        function loadFeature(feature) {
-            var option = $('#feature-types option[value="' + feature +'"]');
-            var is_per_capita = option.prop('per-capita');
-
-            if (is_per_capita)
-                feature = option.prop('original');
-
-            var domain = [];
-            for (var k in data) {
-                if (data[k][feature]) {
-                    if (is_per_capita)
-                        domain.push(data[k][feature] / population[k]);
-                    else
-                        domain.push(data[k][feature]);
-                }
-            }
-            domain.sort(function(a, b) { return a - b; });
-
-            var range = [];
-            for (var i = 0; i < domain.length; ++i)
-                range[i] = Math.floor(i / (Math.ceil(domain.length / choropleth_range)));
-
-            quantile = d3.scale.ordinal()
-                .domain(domain)
-                .range(range);
-
-            quantize = function(d) {
-                if (data[d.id] && data[d.id][feature]) {
-                    var domain_value = data[d.id][feature];
-                    if (is_per_capita)
-                        domain_value /= population[d.id];
-                    return 'q' + ~~quantile(domain_value) + '-' + choropleth_range;
-                } else {
-                    return 'q0-' + choropleth_range;
-                }
-            }
-
-            zipcodes.selectAll('path')
-                .attr('data-original-title', function(d) {
-                    var value = data[d.id];
-                    var output = value ? (value[feature] ? (is_per_capita ? value[feature] / population[d.id] : value[feature]) : 0) : 0;
-                    return d.id + ': ' + format(output);
-                })
-                .attr('class', quantize);
+            $('#feature-types').change(function(ui) {
+                loadFeature(ui.target.value);
+            });
         }
     });
 });
