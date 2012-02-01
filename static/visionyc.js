@@ -212,47 +212,72 @@ $(function() {
                 }
                 domain.sort(function(a, b) { return a - b; });
 
-                var range = [];
-                for (var i = 0; i < domain.length; ++i)
-                    range[i] = Math.floor(i / (Math.ceil(domain.length / choropleth_range)));
-
-                var quantile = d3.scale.ordinal()
-                    .domain(domain)
-                    .range(range);
-
-                var quantize = function(d) {
-                    if (data[d.id] && data[d.id][feature]) {
-                        var domain_value = data[d.id][feature];
-                        if (is_per_capita)
-                            domain_value /= population[d.id];
-                        return 'q' + ~~quantile(domain_value) + '-' + choropleth_range;
-                    } else {
-                        return 'q0-' + choropleth_range;
-                    }
-                }
-
                 zipcodes.selectAll('path')
                     .attr('data-original-title', function(d) {
                         var value = data[d.id];
                         var output = value ? (value[feature] ? (is_per_capita ? value[feature] / population[d.id] : value[feature]) : 0) : 0;
                         return d.id + ': ' + format(output);
                     })
-                    .attr('class', quantize);
+                    .attr('class', createQuantization(domain, choropleth_range, $('#quantize-types').val()));
+
+                // Creates the function that quantizes the different zip codes
+                // into the specified number of buckets
+                function createQuantization(domain, buckets, type) {
+                    var scale = null;
+                    switch (type) {
+                        case 'quantile':
+                            var range = [];
+                            for (var i = 0; i < domain.length; ++i)
+                                range.push(Math.floor(i / (Math.ceil(domain.length / buckets))));
+                            scale = d3.scale.ordinal()
+                                .domain(domain)
+                                .range(range);
+                            break;
+                        case 'linear':
+                            scale = d3.scale.linear()
+                                .domain([0, d3.max(domain)])
+                                .range([0, buckets - 1]);
+                            break;
+                        case 'log':
+                            scale = d3.scale.log()
+                                .domain([1, d3.max(domain) + 1])
+                                .range([0, buckets]);
+                            break;
+                        case 'pow':
+                            scale = d3.scale.pow()
+                                .exponent(0.5)
+                                .domain([1, d3.max(domain) + 1])
+                                .range([0, buckets]);
+                            break;
+                        default:
+                            break;
+                    }
+
+                    return function(d) {
+                        if (data[d.id] && data[d.id][feature]) {
+                            var domain_value = data[d.id][feature];
+                            if (is_per_capita)
+                                domain_value /= population[d.id];
+                            return 'q' + ~~scale(domain_value) + '-' + buckets;
+                        } else {
+                            return 'q0-' + buckets;
+                        }
+                    };
+                }
 
                 // We bind the change event in the slider here to pull in the
-                // quantile and recalculate the quantization style classes
+                // scale and recalculate the quantization style classes
                 $('#slider').bind('slidechange', function(event, ui) {
                     choropleth_range = ui.value;
                     $('#choropleth-count').text(ui.value);
 
-                    var range = [];
-                    for (var i = 0; i < quantile.domain().length; ++i)
-                        range[i] = Math.floor(i / (Math.ceil(quantile.domain().length / choropleth_range)));
-
-                    quantile.range(range);
-
                     zipcodes.selectAll('path')
-                        .attr('class', quantize);
+                        .attr('class', createQuantization(domain, choropleth_range, $('#quantize-types').val()));
+                });
+
+                $('#quantize-types').change(function(ui) {
+                    zipcodes.selectAll('path')
+                        .attr('class', createQuantization(domain, choropleth_range, ui.target.value));
                 });
             }
 
