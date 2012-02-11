@@ -37,3 +37,31 @@ static files.  If you wish to run it using node.js, do:
 ```node server.js```
 
 and go to `http://localhost:8080/`.
+
+Data Specification
+------------------
+
+The uploaded data specification is as follows:
+
+    {
+        "specification": [{
+            "id": "feature-1", // Will also determine option id in form select
+            "text": "Feature 1",
+            "per-capita": true // Boolean value to toggle per-capita support for this feature
+        }, {
+            "id": "feature-2",
+            "text": ...,
+            "per-capita": ...
+        }],
+        "data": {
+            "10001": { // Keys need to be zipcodes
+                "feature-1": 1, // Key needs to match ids in specification section
+                "feature-2": 2, // Values are assuming to be numbers
+            },
+            "10002": {
+                "feature-1": 3,
+                "feature-2": 4,
+            },
+            ...
+        }
+    }
