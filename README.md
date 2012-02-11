@@ -56,7 +56,7 @@ The uploaded data specification is as follows:
         "data": {
             "10001": { // Keys need to be zipcodes
                 "feature-1": 1, // Key needs to match ids in specification section
-                "feature-2": 2, // Values are assuming to be numbers
+                "feature-2": 2, // Values are assumed to be numbers
             },
             "10002": {
                 "feature-1": 3,
